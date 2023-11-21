@@ -40,14 +40,14 @@ func northWestCornerMethod(supply Supply, demand Demand, costMatrix CostMatrix) 
 		demand[j] -= int(min)
 		if supply[i] == 0 {
 			i++
-		} else {
+		}
+		if demand[j] == 0 {
 			j++
 		}
 	}
 	return allocation
 }
 
-// Function for Vogel’s Approximation Method
 // Function for Vogel’s Approximation Method
 func vogelsApproximationMethod(supply Supply, demand Demand, costMatrix CostMatrix) [][]int {
 	allocation := make([][]int, len(supply))
@@ -162,21 +162,20 @@ func vogelsApproximationMethod(supply Supply, demand Demand, costMatrix CostMatr
 	return allocation
 }
 
-// Russell's Approximation Method
 func russellsApproximationMethod(supply Supply, demand Demand, costMatrix CostMatrix) [][]int {
 	allocation := make([][]int, len(supply))
 	for i := range allocation {
 		allocation[i] = make([]int, len(demand))
 	}
 
-	for {
+	for len(supply) > 0 && len(demand) > 0 {
 		u := make([]float64, len(supply))
 		v := make([]float64, len(demand))
 		for i := range u {
-			u[i] = -1
+			u[i] = math.Inf(-1)
 		}
 		for i := range v {
-			v[i] = -1
+			v[i] = math.Inf(-1)
 		}
 
 		u[0] = 0 // Starting potential value
@@ -184,13 +183,13 @@ func russellsApproximationMethod(supply Supply, demand Demand, costMatrix CostMa
 			isChanged := false
 			for i, row := range costMatrix {
 				for j, cost := range row {
-					if allocation[i][j] != 0 || u[i] == -1 && v[j] == -1 {
+					if allocation[i][j] != 0 {
 						continue
 					}
-					if u[i] != -1 {
+					if u[i] != math.Inf(-1) && v[j] == math.Inf(-1) {
 						v[j] = float64(cost) - u[i]
 						isChanged = true
-					} else if v[j] != -1 {
+					} else if u[i] == math.Inf(-1) && v[j] != math.Inf(-1) {
 						u[i] = float64(cost) - v[j]
 						isChanged = true
 					}
@@ -205,7 +204,7 @@ func russellsApproximationMethod(supply Supply, demand Demand, costMatrix CostMa
 		maxDiff, maxI, maxJ := -math.MaxFloat64, -1, -1
 		for i, row := range costMatrix {
 			for j, cost := range row {
-				if u[i] == -1 || v[j] == -1 {
+				if u[i] == math.Inf(-1) || v[j] == math.Inf(-1) || allocation[i][j] != 0 {
 					continue
 				}
 				diff := float64(cost) - (u[i] + v[j])
@@ -226,14 +225,20 @@ func russellsApproximationMethod(supply Supply, demand Demand, costMatrix CostMa
 		demand[maxJ] -= int(allocationValue)
 
 		if supply[maxI] == 0 {
-			for i := range costMatrix {
-				costMatrix[i][maxJ] = math.MaxInt64 // Set high cost to ignore this column
-			}
+			// Remove the exhausted row
+			costMatrix = append(costMatrix[:maxI], costMatrix[maxI+1:]...)
+			supply = append(supply[:maxI], supply[maxI+1:]...)
+			allocation = append(allocation[:maxI], allocation[maxI+1:]...)
 		}
 		if demand[maxJ] == 0 {
-			for j := range costMatrix[maxI] {
-				costMatrix[maxI][j] = math.MaxInt64 // Set high cost to ignore this row
+			// Remove the exhausted column
+			for i := range costMatrix {
+				costMatrix[i] = append(costMatrix[i][:maxJ], costMatrix[i][maxJ+1:]...)
 			}
+			for i := range allocation {
+				allocation[i] = append(allocation[i][:maxJ], allocation[i][maxJ+1:]...)
+			}
+			demand = append(demand[:maxJ], demand[maxJ+1:]...)
 		}
 	}
 
